@@ -3,11 +3,11 @@ import torch
 import torchvision
 from torchvision import transforms
 from data_loader import AVSRDataLoader
-from feature_extractor import MultiScaleFeatureExtractor
+from models.feature_extractor import MultiScaleFeatureExtractor
 from detector import LandmarksDetector
-from adaptive_attention import AdaptiveAttention
-from temporal_encoder import BiLSTMTemporalEncoder
-from context_decoder import TransformerDecoderWithContext
+from models.adaptive_attention import AdaptiveAttention
+from models.temporal_encoder import BiLSTMTemporalEncoder
+from models.context_decoder import TransformerDecoderWithContext
 from transformers import BertTokenizer, BertModel
 
 def save2vid(filename, vid, frames_per_second):

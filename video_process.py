@@ -36,11 +36,6 @@ def apply_transform(transform, img, std_size):
 
 def cut_patch(img, landmarks, height, width, threshold=5):
     center_x, center_y = np.mean(landmarks, axis=0)
-    # Check for too much bias in height and width
-    if abs(center_y - img.shape[0] / 2) > height + threshold:
-        raise Exception("too much bias in height")
-    if abs(center_x - img.shape[1] / 2) > width + threshold:
-        raise Exception("too much bias in width")
     # Calculate bounding box coordinates
     y_min = int(round(np.clip(center_y - height, 0, img.shape[0])))
     y_max = int(round(np.clip(center_y + height, 0, img.shape[0])))
@@ -72,23 +67,29 @@ class VideoProcess:
         self.window_margin = window_margin
         self.convert_gray = convert_gray
 
-    def __call__(self, video, landmarks):
-        # Pre-process landmarks: interpolate frames that are not detected
+    def __call__(self, video, landmarks, scale):
         preprocessed_landmarks = self.interpolate_landmarks(landmarks)
-        # Exclude corner cases: no landmark in all frames
+
         if not preprocessed_landmarks:
             return
-        # Affine transformation and crop patch
-        sequence = self.crop_patch(video, preprocessed_landmarks)
-        assert sequence is not None, f"cannot crop a patch from {video}."
+
+        sequence = self.crop_patch(video, preprocessed_landmarks, scale=scale)
+        assert sequence is not None, f"cannot crop a patch from video."
         return sequence
 
-    def crop_patch(self, video, landmarks):
+
+    def crop_patch(self, video, landmarks, scale=1.0):
         sequence = []
+
+        # Scale the crop size
+        crop_h = int(self.crop_height * scale)
+        crop_w = int(self.crop_width * scale)
+
         for frame_idx, frame in enumerate(video):
             window_margin = min(
                 self.window_margin // 2, frame_idx, len(landmarks) - 1 - frame_idx
             )
+
             smoothed_landmarks = np.mean(
                 [
                     landmarks[x]
@@ -98,20 +99,27 @@ class VideoProcess:
                 ],
                 axis=0,
             )
+
             smoothed_landmarks += landmarks[frame_idx].mean(
                 axis=0
             ) - smoothed_landmarks.mean(axis=0)
+
             transformed_frame, transformed_landmarks = self.affine_transform(
                 frame, smoothed_landmarks, self.reference, grayscale=self.convert_gray
             )
+
+            # Pass scaled crop size to cut_patch
             patch = cut_patch(
                 transformed_frame,
                 transformed_landmarks[self.start_idx : self.stop_idx],
-                self.crop_height // 2,
-                self.crop_width // 2,
+                crop_h // 2,
+                crop_w // 2,
             )
+
             sequence.append(patch)
+
         return np.array(sequence)
+
 
     def interpolate_landmarks(self, landmarks):
         valid_frames_idx = [idx for idx, lm in enumerate(landmarks) if lm is not None]

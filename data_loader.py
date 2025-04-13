@@ -15,13 +15,18 @@ class AVSRDataLoader:
         self,
         speed_rate=1,
         convert_gray=True,
+        scale = 1.0
     ):
         self.video_process = VideoProcess(convert_gray=convert_gray)
         self.video_transform = VideoTransform(speed_rate=speed_rate)
+        self.scale = scale
+
+    def set_scale(self, scale):
+        self.scale = scale
 
     def load_data(self, data_filename, landmarks=None):
         video = self.load_video(data_filename)
-        video = self.video_process(video, landmarks)
+        video = self.video_process(video, landmarks,scale=self.scale)
         video = torch.tensor(video)
         return video
 
